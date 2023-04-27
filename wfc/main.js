@@ -1,18 +1,16 @@
 // this returns what the wfc is to look like, plug that into the renderjs
 
-
-// note: add dead ends to assets
-
 const fs = require('fs');
 
 // load every possible state from the ones provided
 var allStates = []
 fs.readdirSync("assets").forEach(e => {
-    allStates.push(e.slice(0, e.indexOf(".")));
+    if(e.includes(".png"))
+        allStates.push(e.slice(0, e.indexOf(".")));
 });
 
 // create board
-var boardSize = 2; //5x5
+var boardSize = 10; //10x10
 var board = [];
 for (var o = 0; o < boardSize; o++) {
     board[o] = [];
@@ -28,50 +26,48 @@ board[0][0] = ["1010"]; //test
 function collapse() {
     for (var o = 0; o < boardSize; o++) {
         for (var i = 0; i < boardSize; i++) {
-            var get_current = () => board[o][i];
-            var set_current = (n) => { board[o][i] = n };
+            var get_current = () => board[o][i].slice();
+            var set_current = (n) => { board[o][i] = n.slice() };
 
             var offset = (x, y) => {
                 var oy = o + y;
                 var ox = i + x;
                 if (ox < 0 || oy < 0 || ox >= boardSize || oy >= boardSize)
                     return undefined;
-                return board[oy][ox];
+                return board[oy][ox].slice();
             }
 
             var check = (neighbor, meFromHim, himFromMe) => {
-                if (neighbor != undefined && get_current().length > 1) { // skip if that neighbor doesn't exist
-                    var run_sec = true
-                    if (neighbor.length == 1) // they only have one state
-                    {
-                        var run_sec = false
-                        var current_neighbor = neighbor[0];
-                        //console.log(get_current())
+                    if (neighbor != undefined && get_current().length > 1) { // skip if that neighbor doesn't exist
+                        var run_sec = true
+                        if (neighbor.length == 1) // they only have one state
+                        {
+                            var run_sec = false
+                            var current_neighbor = neighbor[0];
+                            //console.log(get_current())
 
-                        var old = get_current()
-                        set_current(get_current().map(x => { // for each item
-                            if (x[himFromMe] != current_neighbor[meFromHim]) {
-                                // console.log("[%i, %i] [meFromHim: %i] [himFromMe: %i] removed: %s", i, o,meFromHim, himFromMe, x);
-                                return undefined;
-                            }
-                            return x;
-                        }).filter(x => x))
+                            var old = get_current()
+                            set_current(get_current().map(x => { // for each item
+                                if (x[himFromMe] != current_neighbor[meFromHim]) {
+                                    // console.log("[%i, %i] [meFromHim: %i] [himFromMe: %i] removed: %s", i, o,meFromHim, himFromMe, x);
+                                    return undefined;
+                                }
+                                return x;
+                            }).filter(x => x))
 
-                        if (JSON.stringify(old) == JSON.stringify(get_current()))
-                            run_sec = true
+                            if (JSON.stringify(old) == JSON.stringify(get_current()))
+                                run_sec = true
 
+                        }
+                        if (run_sec && get_current().length <= tollerance) {
+
+                            var temp = get_current()
+                            temp.splice(Math.floor(Math.random() * temp.length), 1);
+                            set_current(temp)
+
+                            tollerance--
+                        }
                     }
-                    if (run_sec && get_current().length <= tollerance) {
-
-                        var temp = get_current()
-                        temp.splice(Math.floor(Math.random() * temp.length), 1);
-                        set_current(temp)
-
-                        tollerance--
-                        //console.log("radomized")
-                    }
-                    //console.log(board[0][0].length)
-                }
             }
 
             // scan surrounding
@@ -112,13 +108,15 @@ var current_size;
 
 var iterations = 0;
 do {
-    var old_board = board.slice()
-    collapse()
+    var old_board = board.slice();
+    collapse();
     if (JSON.stringify(board) == JSON.stringify(old_board))
         tollerance++;
 
-    console.log("Iteration: ", iterations++)
+    current_size = board.flat(5).length;
 
-    current_size = board.flat(5).length
+    iterations++;
 } while (current_size != boardSize * boardSize)
-console.log(board)
+
+fs.writeFileSync("out.txt", JSON.stringify(board))
+console.log("Took %i iterations. Saved in [out.txt]", iterations)
